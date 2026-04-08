@@ -2,8 +2,6 @@
 
 A Windows desktop app that records audio, transcribes speech in real time, and generates AI-powered summaries — all running locally on your machine with [Azure AI Foundry](https://ai.azure.com/) as the AI backend. Works with any meeting or conversation — not tied to any specific conferencing platform.
 
-![Screenshot of Meeting Transcriber](TeamsMeetingTranscriber/Resources/transcript.png)
-
 ## Features
 
 - **Real-time transcription** — Captures both system audio (loopback) and microphone input, mixes them into 30-second WAV chunks, and streams them to Azure OpenAI Whisper for live transcription.
@@ -41,22 +39,22 @@ A Windows desktop app that records audio, transcribes speech in real time, and g
 - **Windows 10/11** — This is a WPF app that uses Windows-specific audio APIs (WASAPI).
 - [**.NET 10 SDK**](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - **Azure AI Foundry** resource with the following model deployments:
-  - A **Whisper** deployment (default name: `whisper-large-v3-turbo`) for audio transcription
-  - A **Chat** deployment (default name: `gpt-4o-mini`) for summarization and Q&A
+  - A **Whisper** deployment for audio transcription
+  - A **Chat** deployment for summarization and Q&A
 
 ## Getting Started
 
 ### Option A: Download the installer
 
-Download the latest signed `MeetingTranscriber-x.x.x-win-x64.msix` from the [Releases](https://github.com/<your-username>/TeamsMeetingTranscriber/releases) page and double-click to install. The MSIX package is signed by **Pooyan Fekrati** and includes Start Menu integration.
+Download the latest signed `MeetingTranscriber-x.x.x-win-x64.msix` from the [Releases](https://github.com/pfekrati/MeetingTranscriber/releases) page and double-click to install. The MSIX package is signed by **Pooyan Fekrati** and includes Start Menu integration.
 
 ### Option B: Build from source
 
 ```bash
-git clone https://github.com/<your-username>/TeamsMeetingTranscriber.git
-cd TeamsMeetingTranscriber
+git clone https://github.com/pfekrati/MeetingTranscriber.git
+cd MeetingTranscriber
 dotnet build
-dotnet run --project TeamsMeetingTranscriber
+dotnet run --project MeetingTranscriber
 ```
 
 ### Building the installer yourself
@@ -82,10 +80,10 @@ The Settings window opens automatically on first run. You'll need to provide:
 |---|---|
 | **Azure AI Foundry Endpoint** | Your resource's endpoint URL (e.g. `https://my-resource.openai.azure.com/`) |
 | **Authentication** | Choose **Microsoft Entra ID** (recommended) or **API Key** |
-| **Whisper Deployment Name** | Name of your Whisper model deployment (default: `whisper-large-v3-turbo`) |
-| **Chat Deployment Name** | Name of your chat model deployment (default: `gpt-4o-mini`) |
+| **Whisper Deployment Name** | Name of your Whisper model deployment |
+| **Chat Deployment Name** | Name of your chat model deployment |
 
-Settings are saved to `%LOCALAPPDATA%\TeamsMeetingTranscriber\settings.json`.
+Settings are saved to `%LOCALAPPDATA%\MeetingTranscriber\settings.json`.
 
 ### 4. Using the app
 
@@ -101,10 +99,10 @@ All data is stored locally on your machine:
 
 | Data | Location |
 |---|---|
-| Settings | `%LOCALAPPDATA%\TeamsMeetingTranscriber\settings.json` |
-| Meeting database | `%LOCALAPPDATA%\TeamsMeetingTranscriber\meetings.db` |
-| Audio recordings | `%LOCALAPPDATA%\TeamsMeetingTranscriber\recordings\` |
-| Entra auth token cache | `%LOCALAPPDATA%\TeamsMeetingTranscriber\entra_auth_record.json` |
+| Settings | `%LOCALAPPDATA%\MeetingTranscriber\settings.json` |
+| Meeting database | `%LOCALAPPDATA%\MeetingTranscriber\meetings.db` |
+| Audio recordings | `%LOCALAPPDATA%\MeetingTranscriber\recordings\` |
+| Entra auth token cache | `%LOCALAPPDATA%\MeetingTranscriber\entra_auth_record.json` |
 
 > **Note**: Audio chunks are deleted after transcription. The full recording WAV file is kept in the recordings folder.
 
