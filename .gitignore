@@ -1,0 +1,16 @@
+## Build artifacts
+artifacts/
+
+## Certificates — NEVER commit private keys
+certs/
+
+## .NET build output
+bin/
+obj/
+*.user
+
+## IDE
+.vs/
+
+## Upgrade workflow artifacts
+.github/upgrades/

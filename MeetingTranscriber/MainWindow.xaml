@@ -1,0 +1,102 @@
+<Window x:Class="MeetingTranscriber.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Meeting Transcriber"
+        Icon="Resources/transcript.png"
+        Width="750" Height="550"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E2E"
+        Closing="Window_Closing"
+        StateChanged="Window_StateChanged">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#181825" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Image Source="Resources/transcript.png" Width="36" Height="36"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Meeting Transcriber"
+                                   FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                        <TextBlock x:Name="StatusText" Text="Initializing..."
+                                   FontSize="12" Foreground="#6C7086" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="StartButton" Content="🎙 Start Recording"
+                            Click="StartButton_Click" Width="140" Height="32" Margin="0,0,8,0"
+                            Background="#A6E3A1" Foreground="#1E1E2E" FontWeight="SemiBold"
+                            BorderThickness="0" Cursor="Hand"/>
+                    <Button x:Name="StopButton" Content="⏹ Stop Recording" Visibility="Collapsed"
+                            Click="StopButton_Click" Width="130" Height="32" Margin="0,0,8,0"
+                            Background="#F38BA8" Foreground="#1E1E2E" FontWeight="SemiBold"
+                            BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="⚙ Settings" Click="Settings_Click"
+                            Width="90" Height="32"
+                            Background="#45475A" Foreground="#CDD6F4"
+                            BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Live transcript area (shown during recording) -->
+        <Border Grid.Row="1" x:Name="LiveTranscriptPanel" Visibility="Collapsed"
+                Background="#11111B" Margin="16,8,16,0" Padding="12" CornerRadius="8">
+            <StackPanel>
+                <TextBlock Text="🔴 Live Transcript" Foreground="#F38BA8" FontWeight="SemiBold" FontSize="13"/>
+                <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+                    <TextBlock x:Name="LiveTranscriptText" TextWrapping="Wrap"
+                               Foreground="#BAC2DE" FontSize="12"/>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <!-- Meeting History List -->
+        <Border Grid.Row="2" Margin="16,8,16,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Meeting History"
+                           FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,8"/>
+                <ListBox Grid.Row="1" x:Name="MeetingsList"
+                         Background="#181825" BorderBrush="#313244"
+                         Foreground="#CDD6F4" FontSize="13"
+                         MouseDoubleClick="MeetingsList_DoubleClick">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Delete" Click="DeleteMeeting_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="4">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                                <TextBlock Text="{Binding StartTime, StringFormat='{}{0:g}'}" Foreground="#6C7086" FontSize="11"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- Footer -->
+        <Border Grid.Row="3" Background="#181825" Padding="16,8">
+            <TextBlock Text="Double-click a meeting to view details. Right-click to delete. Minimizing hides to system tray."
+                       Foreground="#585B70" FontSize="11"/>
+        </Border>
+    </Grid>
+</Window>

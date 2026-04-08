@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+
+    <!-- App metadata -->
+    <AssemblyName>MeetingTranscriber</AssemblyName>
+    <Product>Meeting Transcriber</Product>
+    <Version>1.0.0</Version>
+    <Company>Pooyan Fekrati</Company>
+    <Authors>Pooyan Fekrati</Authors>
+    <Description>A desktop app that records audio, transcribes speech in real time, and generates AI-powered meeting summaries.</Description>
+    <Copyright>Copyright © 2025 Pooyan Fekrati</Copyright>
+    <ApplicationIcon>Resources\transcript.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.20.0" />
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\transcript.png" />
+  </ItemGroup>
+
+</Project>
