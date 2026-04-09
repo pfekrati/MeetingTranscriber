@@ -157,8 +157,12 @@ public partial class SettingsWindow : Window
 
             if (enable)
             {
-                string exePath = Environment.ProcessPath ?? System.Reflection.Assembly.GetEntryAssembly()!.Location;
-                key.SetValue(StartupValueName, $"\"{exePath}\"");
+                string exePath = Environment.ProcessPath
+                    ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
+                    ?? System.Reflection.Assembly.GetEntryAssembly()!.Location;
+
+                // Pass --minimized so the app starts to the system tray on logon.
+                key.SetValue(StartupValueName, $"\"{exePath}\" --minimized");
             }
             else
             {
