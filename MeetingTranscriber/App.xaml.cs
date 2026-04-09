@@ -46,10 +46,17 @@ public partial class App : Application
             if (mw != null) { mw.Show(); mw.WindowState = WindowState.Normal; mw.Activate(); }
         };
         contextMenu.Items.Add(showItem);
+        contextMenu.Items.Add(new System.Windows.Controls.Separator());
 
-        var exitItem = new System.Windows.Controls.MenuItem { Header = "Exit" };
-        exitItem.Click += (s, args) => Current.Shutdown();
-        contextMenu.Items.Add(exitItem);
+        var quitItem = new System.Windows.Controls.MenuItem { Header = "Quit" };
+        quitItem.Click += (s, args) =>
+        {
+            if (Current.MainWindow is MainWindow mw)
+                mw.Quit();
+            else
+                Current.Shutdown();
+        };
+        contextMenu.Items.Add(quitItem);
 
         _notifyIcon.ContextMenu = contextMenu;
 

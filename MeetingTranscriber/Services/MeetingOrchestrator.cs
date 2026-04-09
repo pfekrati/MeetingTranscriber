@@ -20,6 +20,7 @@ public class MeetingOrchestrator : IDisposable
     public event Action<Meeting>? MeetingCompleted;
     public event Action<string>? TranscriptUpdated;
     public event Action<string>? ErrorOccurred;
+    public event Action<TimeSpan>? SilenceDetected;
 
     public Meeting? CurrentMeeting => _currentMeeting;
     public bool IsRecording => _audioCapture.IsRecording;
@@ -40,7 +41,13 @@ public class MeetingOrchestrator : IDisposable
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                          "MeetingTranscriber"));
 
+        if (settings.SilenceTimeoutMinutes > 0)
+            _audioCapture.SilenceTimeout = TimeSpan.FromMinutes(settings.SilenceTimeoutMinutes);
+        else
+            _audioCapture.SilenceTimeout = TimeSpan.Zero;
+
         _audioCapture.AudioChunkReady += OnAudioChunkReady;
+        _audioCapture.SilenceDetected += duration => SilenceDetected?.Invoke(duration);
     }
 
     public void StartTranscription()

@@ -78,6 +78,7 @@
                          MouseDoubleClick="MeetingsList_DoubleClick">
                     <ListBox.ContextMenu>
                         <ContextMenu>
+                            <MenuItem Header="Rename" Click="RenameMeeting_Click"/>
                             <MenuItem Header="Delete" Click="DeleteMeeting_Click"/>
                         </ContextMenu>
                     </ListBox.ContextMenu>
@@ -95,7 +96,7 @@
 
         <!-- Footer -->
         <Border Grid.Row="3" Background="#181825" Padding="16,8">
-            <TextBlock Text="Double-click a meeting to view details. Right-click to delete. Minimizing hides to system tray."
+            <TextBlock Text="Double-click a meeting to view details. Right-click to rename or delete. Minimizing hides to system tray."
                        Foreground="#585B70" FontSize="11"/>
         </Border>
     </Grid>

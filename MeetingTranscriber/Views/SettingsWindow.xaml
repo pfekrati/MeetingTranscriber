@@ -15,6 +15,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -81,7 +83,21 @@
                       Foreground="#BAC2DE" Margin="0,0,0,4"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="8" Grid.ColumnSpan="2" Orientation="Horizontal"
+        <!-- Recording options -->
+        <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Text="Recording"
+                   FontSize="18" FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,12,0,8"/>
+
+        <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+            <TextBlock Text="Silence timeout:"
+                       Foreground="#BAC2DE" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="SilenceTimeoutBox" Width="50" Padding="6,4"
+                     Background="#313244" Foreground="#CDD6F4" BorderBrush="#45475A"
+                     VerticalAlignment="Center"/>
+            <TextBlock Text="minutes (0 to disable)"
+                       Foreground="#6C7086" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="12"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="10" Grid.ColumnSpan="2" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Save" Width="90" Height="32" Click="Save_Click"
                     Background="#89B4FA" Foreground="#1E1E2E" FontWeight="SemiBold"

@@ -5,20 +5,21 @@
 .DESCRIPTION
     This script:
     1. Publishes the app as a self-contained, single-file executable
-    2. Signs the executable with your code signing certificate (if provided)
-    3. Creates an MSIX package for easy installation
-    4. Signs the MSIX package (if certificate provided)
+    2. Signs the executable with your code-signing certificate (if provided)
+    3. Creates a Windows installer using Inno Setup
+    4. Signs the installer (if certificate provided)
+
+    If Inno Setup is not installed the script falls back to a ZIP archive.
 
 .PARAMETER CertificatePath
-    Path to your .pfx code signing certificate file.
-    If omitted, the build produces unsigned artifacts.
+    Path to a .pfx code-signing certificate. If omitted, artifacts are unsigned.
 
 .PARAMETER CertificatePassword
-    Password for the .pfx certificate. If the certificate has no password, omit this.
+    Password for the .pfx certificate. Omit if the certificate has no password.
 
 .PARAMETER CertificateThumbprint
-    Thumbprint of a certificate installed in the Windows certificate store.
-    Use this instead of CertificatePath when the cert is in the store.
+    SHA-1 thumbprint of a certificate installed in the Windows certificate store.
+    Use this instead of CertificatePath when the cert is already in the store.
 
 .PARAMETER Configuration
     Build configuration. Default: Release
@@ -42,36 +43,83 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoRoot = Split-Path -Parent $PSScriptRoot
-$ProjectPath = Join-Path $RepoRoot "MeetingTranscriber\MeetingTranscriber.csproj"
-$PublishDir = Join-Path $RepoRoot "artifacts\publish"
+# ---------------------------------------------------------------------------
+# Paths & constants
+# ---------------------------------------------------------------------------
+$RepoRoot     = Split-Path -Parent $PSScriptRoot
+$ProjectPath  = Join-Path $RepoRoot "MeetingTranscriber\MeetingTranscriber.csproj"
+$PublishDir   = Join-Path $RepoRoot "artifacts\publish"
 $InstallerDir = Join-Path $RepoRoot "artifacts\installer"
+$IssPath      = Join-Path $PSScriptRoot "MeetingTranscriber.iss"
 
-$AppName = "MeetingTranscriber"
-$AppDisplayName = "Meeting Transcriber"
-$Publisher = "Pooyan Fekrati"
-$PublisherDN = "CN=Pooyan Fekrati"
-$Version = "1.0.0.0"
+$AppName    = "MeetingTranscriber"
+$AppVersion = "1.0.0"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Meeting Transcriber - Build & Package" -ForegroundColor Cyan
+Write-Host "  Meeting Transcriber - Build Installer" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
+
+# ---------------------------------------------------------------------------
+# Helper: locate signtool.exe
+# ---------------------------------------------------------------------------
+function Find-SignTool {
+    $found = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+             Sort-Object FullName -Descending | Select-Object -First 1
+    return $found
+}
+
+# ---------------------------------------------------------------------------
+# Helper: sign a single file
+# ---------------------------------------------------------------------------
+function Sign-File {
+    param([string]$FilePath)
+
+    $signTool = Find-SignTool
+    if (-not $signTool) {
+        Write-Host "  WARNING: signtool.exe not found. Install Windows SDK to enable signing." -ForegroundColor DarkYellow
+        return $false
+    }
+
+    $signArgs = @("sign", "/fd", "SHA256", "/tr", "http://timestamp.digicert.com", "/td", "SHA256")
+
+    if ($CertificateThumbprint) {
+        $signArgs += "/sha1", $CertificateThumbprint
+    }
+    elseif ($CertificatePath) {
+        $signArgs += "/f", $CertificatePath
+        if ($CertificatePassword) {
+            $signArgs += "/p", $CertificatePassword
+        }
+    }
+
+    $signArgs += $FilePath
+    & $signTool.FullName @signArgs
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  Signed: $FilePath" -ForegroundColor Green
+        return $true
+    }
+    else {
+        Write-Host "  WARNING: Signing failed for $FilePath" -ForegroundColor DarkYellow
+        return $false
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Step 1: Clean previous artifacts
 # ---------------------------------------------------------------------------
-Write-Host "[1/5] Cleaning previous artifacts..." -ForegroundColor Yellow
-if (Test-Path $PublishDir) { Remove-Item $PublishDir -Recurse -Force }
+Write-Host "[1/4] Cleaning previous artifacts..." -ForegroundColor Yellow
+if (Test-Path $PublishDir)   { Remove-Item $PublishDir   -Recurse -Force }
 if (Test-Path $InstallerDir) { Remove-Item $InstallerDir -Recurse -Force }
-New-Item -ItemType Directory -Path $PublishDir -Force | Out-Null
+New-Item -ItemType Directory -Path $PublishDir   -Force | Out-Null
 New-Item -ItemType Directory -Path $InstallerDir -Force | Out-Null
 
 # ---------------------------------------------------------------------------
 # Step 2: Publish self-contained single-file executable
 # ---------------------------------------------------------------------------
-Write-Host "[2/5] Publishing self-contained app..." -ForegroundColor Yellow
+Write-Host "[2/4] Publishing self-contained app..." -ForegroundColor Yellow
 dotnet publish $ProjectPath `
     --configuration $Configuration `
     --runtime win-x64 `
@@ -98,190 +146,94 @@ Write-Host "  Published: $ExePath ($ExeSize MB)" -ForegroundColor Green
 # ---------------------------------------------------------------------------
 # Step 3: Sign the executable (optional)
 # ---------------------------------------------------------------------------
-$SigningAvailable = $false
-if ($CertificatePath -or $CertificateThumbprint) {
-    Write-Host "[3/5] Signing executable..." -ForegroundColor Yellow
+$HasCert = $CertificatePath -or $CertificateThumbprint
+if ($HasCert) {
+    Write-Host "[3/4] Signing executable..." -ForegroundColor Yellow
+    Sign-File -FilePath $ExePath | Out-Null
+}
+else {
+    Write-Host "[3/4] Skipping signing (no certificate provided)." -ForegroundColor DarkGray
+}
 
-    $signToolPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
-                    Sort-Object FullName -Descending | Select-Object -First 1
+# ---------------------------------------------------------------------------
+# Step 4: Build the installer
+# ---------------------------------------------------------------------------
+Write-Host "[4/4] Building installer..." -ForegroundColor Yellow
 
-    if (-not $signToolPath) {
-        Write-Host "  WARNING: signtool.exe not found. Install Windows SDK to enable signing." -ForegroundColor DarkYellow
-        Write-Host "  Skipping signing step." -ForegroundColor DarkYellow
+# Locate Inno Setup compiler
+$isccPaths = @(
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+    "C:\Program Files\Inno Setup 6\ISCC.exe"
+)
+$iscc = $isccPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+$installerBuilt = $false
+
+if ($iscc -and (Test-Path $IssPath)) {
+    # Build the sign tool parameter for Inno Setup if a certificate is available
+    $issSignToolArg = $null
+    if ($HasCert) {
+        $signToolExe = Find-SignTool
+        if ($signToolExe) {
+            # Inno Setup SignTool syntax: name=command $f is replaced with filename
+            $signCmd = "`"$($signToolExe.FullName)`" sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256"
+            if ($CertificateThumbprint) {
+                $signCmd += " /sha1 $CertificateThumbprint"
+            }
+            elseif ($CertificatePath) {
+                $signCmd += " /f `"$CertificatePath`""
+                if ($CertificatePassword) {
+                    $signCmd += " /p `"$CertificatePassword`""
+                }
+            }
+            $signCmd += ' $f'
+            $issSignToolArg = "/Ssigntool=$signCmd"
+        }
+    }
+
+    # Build the full command line for cmd /c � this avoids PowerShell
+    # re-interpreting or mangling quotes when passing to ISCC.exe.
+    $cmdLine = "`"$iscc`""
+    $cmdLine += " /DAppVersion=$AppVersion"
+    $cmdLine += " `"/DPublishDir=$PublishDir`""
+    $cmdLine += " `"/DInstallerDir=$InstallerDir`""
+    $cmdLine += " /DAppExeName=$AppName.exe"
+
+    if ($issSignToolArg) {
+        $cmdLine += " /DSignTool=signtool"
+        $cmdLine += " `"$issSignToolArg`""
     }
     else {
-        $signArgs = @("sign", "/fd", "SHA256", "/tr", "http://timestamp.digicert.com", "/td", "SHA256")
-
-        if ($CertificateThumbprint) {
-            $signArgs += "/sha1", $CertificateThumbprint
-        }
-        elseif ($CertificatePath) {
-            $signArgs += "/f", $CertificatePath
-            if ($CertificatePassword) {
-                $signArgs += "/p", $CertificatePassword
-            }
-        }
-
-        $signArgs += $ExePath
-        & $signToolPath.FullName @signArgs
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  Executable signed successfully." -ForegroundColor Green
-            $SigningAvailable = $true
-        }
-        else {
-            Write-Host "  WARNING: Signing failed. Continuing with unsigned build." -ForegroundColor DarkYellow
-        }
-    }
-}
-else {
-    Write-Host "[3/5] Skipping signing (no certificate provided)." -ForegroundColor DarkGray
-}
-
-# ---------------------------------------------------------------------------
-# Step 4: Create MSIX package
-# ---------------------------------------------------------------------------
-Write-Host "[4/5] Creating MSIX installer package..." -ForegroundColor Yellow
-
-# Check for makeappx
-$makeAppx = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\makeappx.exe" -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending | Select-Object -First 1
-
-if (-not $makeAppx) {
-    Write-Host "  WARNING: makeappx.exe not found. Install Windows 10 SDK." -ForegroundColor DarkYellow
-    Write-Host "  Creating ZIP package instead..." -ForegroundColor DarkYellow
-
-    $zipPath = Join-Path $InstallerDir "$AppName-$Version-win-x64.zip"
-    Compress-Archive -Path "$PublishDir\*" -DestinationPath $zipPath -Force
-    Write-Host "  Created: $zipPath" -ForegroundColor Green
-}
-else {
-    # Prepare logo assets — MSIX requires specific sizes.
-    # Scale the source PNG to the required dimensions.
-    $iconSource = Join-Path $RepoRoot "MeetingTranscriber\Resources\transcript.png"
-
-    Add-Type -AssemblyName System.Drawing
-    $requiredAssets = @(
-        @{ Name = "Square44x44Logo.png";  Size = 44  },
-        @{ Name = "Square150x150Logo.png"; Size = 150 },
-        @{ Name = "StoreLogo.png";         Size = 50  }
-    )
-    foreach ($asset in $requiredAssets) {
-        $destPath = Join-Path $PublishDir $asset.Name
-        if (-not (Test-Path $destPath)) {
-            $srcImg = [System.Drawing.Image]::FromFile($iconSource)
-            $scaled = New-Object System.Drawing.Bitmap($asset.Size, $asset.Size)
-            $g = [System.Drawing.Graphics]::FromImage($scaled)
-            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-            $g.DrawImage($srcImg, 0, 0, $asset.Size, $asset.Size)
-            $g.Dispose()
-            $scaled.Save($destPath, [System.Drawing.Imaging.ImageFormat]::Png)
-            $scaled.Dispose()
-            $srcImg.Dispose()
-        }
+        $cmdLine += " /DSignTool="
     }
 
-    # Generate AppxManifest.xml
-    $manifestContent = @"
-<?xml version="1.0" encoding="utf-8"?>
-<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-         IgnorableNamespaces="rescap">
+    $cmdLine += " `"$IssPath`""
 
-  <Identity Name="PooyanFekrati.$AppName"
-            Publisher="$PublisherDN"
-            Version="$Version"
-            ProcessorArchitecture="x64" />
-
-  <Properties>
-    <DisplayName>$AppDisplayName</DisplayName>
-    <PublisherDisplayName>$Publisher</PublisherDisplayName>
-    <Description>Records audio, transcribes speech in real time, and generates AI-powered meeting summaries.</Description>
-    <Logo>StoreLogo.png</Logo>
-  </Properties>
-
-  <Dependencies>
-    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
-  </Dependencies>
-
-  <Resources>
-    <Resource Language="en-us" />
-  </Resources>
-
-  <Applications>
-    <Application Id="$AppName"
-                 Executable="$AppName.exe"
-                 EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="$AppDisplayName"
-                          Description="Meeting Transcriber"
-                          BackgroundColor="transparent"
-                          Square150x150Logo="Square150x150Logo.png"
-                          Square44x44Logo="Square44x44Logo.png" />
-    </Application>
-  </Applications>
-
-  <Capabilities>
-    <rescap:Capability Name="runFullTrust" />
-    <DeviceCapability Name="microphone" />
-  </Capabilities>
-</Package>
-"@
-
-    $manifestPath = Join-Path $PublishDir "AppxManifest.xml"
-    # Write WITHOUT BOM — makeappx rejects UTF-8 with BOM
-    [System.IO.File]::WriteAllText($manifestPath, $manifestContent, (New-Object System.Text.UTF8Encoding $false))
-
-    $msixPath = Join-Path $InstallerDir "$AppName-$Version-win-x64.msix"
-    & $makeAppx.FullName pack /d $PublishDir /p $msixPath /o
+    Write-Host "  Running Inno Setup compiler..." -ForegroundColor Gray
+    cmd /c $cmdLine
 
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "  Created: $msixPath" -ForegroundColor Green
+        $setupExe = Join-Path $InstallerDir "$AppName-$AppVersion-Setup.exe"
+        if (Test-Path $setupExe) {
+            $setupSize = [math]::Round((Get-Item $setupExe).Length / 1MB, 1)
+            Write-Host "  Created installer: $setupExe ($setupSize MB)" -ForegroundColor Green
+            $installerBuilt = $true
+        }
     }
     else {
-        Write-Host "  WARNING: MSIX packaging failed. Creating ZIP instead..." -ForegroundColor DarkYellow
-        $zipPath = Join-Path $InstallerDir "$AppName-$Version-win-x64.zip"
-        Compress-Archive -Path "$PublishDir\*" -DestinationPath $zipPath -Force
-        Write-Host "  Created: $zipPath" -ForegroundColor Green
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Step 5: Sign the MSIX package (optional)
-# ---------------------------------------------------------------------------
-$msixPath = Join-Path $InstallerDir "$AppName-$Version-win-x64.msix"
-if ((Test-Path $msixPath) -and ($CertificatePath -or $CertificateThumbprint)) {
-    Write-Host "[5/5] Signing MSIX package..." -ForegroundColor Yellow
-
-    $signToolPath = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
-                    Sort-Object FullName -Descending | Select-Object -First 1
-
-    if ($signToolPath) {
-        $signArgs = @("sign", "/fd", "SHA256", "/tr", "http://timestamp.digicert.com", "/td", "SHA256")
-
-        if ($CertificateThumbprint) {
-            $signArgs += "/sha1", $CertificateThumbprint
-        }
-        elseif ($CertificatePath) {
-            $signArgs += "/f", $CertificatePath
-            if ($CertificatePassword) {
-                $signArgs += "/p", $CertificatePassword
-            }
-        }
-
-        $signArgs += $msixPath
-        & $signToolPath.FullName @signArgs
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  MSIX package signed successfully." -ForegroundColor Green
-        }
-        else {
-            Write-Host "  WARNING: MSIX signing failed." -ForegroundColor DarkYellow
-        }
+        Write-Host "  WARNING: Inno Setup compilation failed. Creating ZIP instead..." -ForegroundColor DarkYellow
     }
 }
 else {
-    Write-Host "[5/5] Skipping MSIX signing." -ForegroundColor DarkGray
+    Write-Host "  Inno Setup 6 not found. Download free from https://jrsoftware.org/isinfo.php" -ForegroundColor DarkYellow
+}
+
+if (-not $installerBuilt) {
+    Write-Host "  Creating ZIP archive instead..." -ForegroundColor DarkYellow
+    $zipPath = Join-Path $InstallerDir "$AppName-$AppVersion-win-x64.zip"
+    Compress-Archive -Path "$PublishDir\*" -DestinationPath $zipPath -Force
+    $zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
+    Write-Host "  Created: $zipPath ($zipSize MB)" -ForegroundColor Green
 }
 
 # ---------------------------------------------------------------------------
@@ -298,9 +250,11 @@ Get-ChildItem $InstallerDir | ForEach-Object {
     Write-Host "  $($_.Name) ($size MB)" -ForegroundColor Green
 }
 Write-Host ""
-if (-not ($CertificatePath -or $CertificateThumbprint)) {
+if (-not $HasCert) {
     Write-Host "NOTE: Artifacts are UNSIGNED. To sign, re-run with:" -ForegroundColor DarkYellow
     Write-Host "  .\build\Build-Installer.ps1 -CertificatePath 'path\to\cert.pfx' -CertificatePassword 'password'" -ForegroundColor DarkYellow
+    Write-Host "  or" -ForegroundColor DarkYellow
+    Write-Host "  .\build\Build-Installer.ps1 -CertificateThumbprint 'THUMBPRINT'" -ForegroundColor DarkYellow
     Write-Host ""
 }
 Write-Host "Self-contained executable: $ExePath" -ForegroundColor White

@@ -12,6 +12,7 @@ public partial class MeetingDetailWindow : Window
     private readonly DatabaseService? _database;
 
     public bool IsDeleted { get; private set; }
+    public bool IsRenamed { get; private set; }
 
     public MeetingDetailWindow(Meeting meeting, FoundryService foundry, DatabaseService? database = null)
     {
@@ -26,6 +27,19 @@ public partial class MeetingDetailWindow : Window
         TranscriptText.Text = string.IsNullOrWhiteSpace(meeting.Transcript) ? "No transcript available." : meeting.Transcript;
 
         ShowDialog();
+    }
+
+    private void Rename_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new RenameDialog(_meeting.Title);
+        dialog.Owner = this;
+        if (dialog.ShowDialog() == true)
+        {
+            _meeting.Title = dialog.MeetingName;
+            _database?.UpdateMeeting(_meeting);
+            TitleText.Text = _meeting.Title;
+            IsRenamed = true;
+        }
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)

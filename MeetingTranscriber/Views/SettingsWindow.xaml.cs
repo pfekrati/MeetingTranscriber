@@ -42,6 +42,7 @@ public partial class SettingsWindow : Window
         ChatBox.Text = Settings.ChatDeploymentName;
         StartWithWindowsCheckBox.IsChecked = Settings.StartWithWindows;
         StartMinimizedCheckBox.IsChecked = Settings.StartMinimized;
+        SilenceTimeoutBox.Text = Settings.SilenceTimeoutMinutes.ToString();
         UpdateAuthVisibility();
         LoadSignInStatus();
     }
@@ -103,6 +104,7 @@ public partial class SettingsWindow : Window
         Settings.ChatDeploymentName = ChatBox.Text.Trim();
         Settings.StartWithWindows = StartWithWindowsCheckBox.IsChecked == true;
         Settings.StartMinimized = StartMinimizedCheckBox.IsChecked == true;
+        Settings.SilenceTimeoutMinutes = int.TryParse(SilenceTimeoutBox.Text.Trim(), out int timeout) && timeout >= 0 ? timeout : 3;
 
         if (string.IsNullOrEmpty(Settings.FoundryEndpoint))
         {

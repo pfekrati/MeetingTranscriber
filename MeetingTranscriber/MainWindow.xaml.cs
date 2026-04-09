@@ -11,6 +11,7 @@ public partial class MainWindow : Window
 {
     private MeetingOrchestrator? _orchestrator;
     private AppSettings? _settings;
+    private bool _isQuitting;
 
     public MainWindow()
     {
@@ -47,6 +48,9 @@ public partial class MainWindow : Window
         _orchestrator.ErrorOccurred += error =>
             Dispatcher.Invoke(() => StatusText.Text = $"Error: {error}");
 
+        _orchestrator.SilenceDetected += duration =>
+            Dispatcher.Invoke(() => OnSilenceDetected(duration));
+
         RefreshMeetingsList();
         StatusText.Text = "Ready. Click Start Recording to begin.";
     }
@@ -76,6 +80,30 @@ public partial class MainWindow : Window
             MessageBoxImage.Information);
     }
 
+    private void OnSilenceDetected(TimeSpan duration)
+    {
+        if (_orchestrator == null || !_orchestrator.IsRecording) return;
+
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+        Topmost = true;
+        Topmost = false;
+
+        int minutes = (int)duration.TotalMinutes;
+        var result = MessageBox.Show(
+            this,
+            $"No audio has been detected for {minutes} minute{(minutes == 1 ? "" : "s")}.\n\nDo you want to stop the recording?",
+            "Meeting May Have Ended",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            StopButton_Click(this, new RoutedEventArgs());
+        }
+    }
+
     private void RefreshMeetingsList()
     {
         if (_orchestrator == null) return;
@@ -97,6 +125,20 @@ public partial class MainWindow : Window
         {
             _settings = win.Settings;
             InitializeOrchestrator();
+        }
+    }
+
+    private void RenameMeeting_Click(object sender, RoutedEventArgs e)
+    {
+        if (MeetingsList.SelectedItem is not Meeting meeting || _orchestrator == null) return;
+
+        var dialog = new Views.RenameDialog(meeting.Title);
+        dialog.Owner = this;
+        if (dialog.ShowDialog() == true)
+        {
+            meeting.Title = dialog.MeetingName;
+            _orchestrator.Database.UpdateMeeting(meeting);
+            RefreshMeetingsList();
         }
     }
 
@@ -122,8 +164,8 @@ public partial class MainWindow : Window
         if (MeetingsList.SelectedItem is Meeting meeting && _orchestrator != null)
         {
             var detailWin = new MeetingDetailWindow(meeting, _orchestrator.Foundry, _orchestrator.Database);
-            if (detailWin.IsDeleted)
-                RefreshMeetingsList();
+                if (detailWin.IsDeleted || detailWin.IsRenamed)
+                    RefreshMeetingsList();
         }
     }
 
@@ -137,7 +179,19 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, CancelEventArgs e)
     {
-        // On close, fully shut down
+        if (!_isQuitting)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
         _orchestrator?.Dispose();
+    }
+
+    public void Quit()
+    {
+        _isQuitting = true;
+        Close();
     }
 }

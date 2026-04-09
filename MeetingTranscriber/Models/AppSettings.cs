@@ -10,4 +10,5 @@ public class AppSettings
     public string DatabasePath { get; set; } = "meetings.db";
     public bool StartWithWindows { get; set; }
     public bool StartMinimized { get; set; }
+    public int SilenceTimeoutMinutes { get; set; } = 3;
 }
