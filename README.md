@@ -46,7 +46,7 @@ A Windows desktop app that records audio, transcribes speech in real time, and g
 
 ### Option A: Download the installer
 
-Download the latest signed `MeetingTranscriber-x.x.x-win-x64.msix` from the [Releases](https://github.com/pfekrati/MeetingTranscriber/releases) page and double-click to install. The MSIX package is signed by **Pooyan Fekrati** and includes Start Menu integration.
+Download the latest signed `MeetingTranscriber-x.x.x-win-x64-setup.exe` from the [Releases](https://github.com/pfekrati/MeetingTranscriber/releases) page and run it.
 
 ### Option B: Build from source
 
@@ -63,14 +63,19 @@ dotnet run --project MeetingTranscriber
 # Unsigned (for local testing)
 .\build\Build-Installer.ps1
 
-# Signed with a PFX certificate
-.\build\Build-Installer.ps1 -CertificatePath ".\cert.pfx" -CertificatePassword "password"
+# Signed using the default PFX in .\certs\ and password from .\certs\password.txt
+.\build\Build-Installer.ps1 -Sign
 
-# Signed with a certificate from the Windows certificate store
-.\build\Build-Installer.ps1 -CertificateThumbprint "A1B2C3D4..."
+# Signed with a specific PFX certificate
+.\build\Build-Installer.ps1 -Sign -CertificatePath ".\certs\MeetingTranscriber-CodeSigning.pfx" -CertificatePassword "password"
 ```
 
-This produces a self-contained single-file `MeetingTranscriber.exe` (~75 MB) and an MSIX installer package in the `artifacts/` folder. No .NET runtime installation required on the target machine.
+This produces a self-contained single-file `MeetingTranscriber.exe` (~75 MB) and a Windows installer in the `artifacts/` folder. No .NET runtime installation is required on the target machine.
+
+Installer build prerequisites:
+
+- [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`ISCC.exe`)
+- Optional signing: Windows SDK `signtool.exe`
 
 ### Configure on first launch
 
