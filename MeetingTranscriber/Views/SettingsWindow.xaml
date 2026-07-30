@@ -48,6 +48,10 @@
                     Width="100" Height="28"
                     Background="#89B4FA" Foreground="#1E1E2E" FontWeight="SemiBold"
                     BorderThickness="0" Cursor="Hand"/>
+            <Button x:Name="SignOutButton" Content="🚪 Sign Out" Click="SignOut_Click"
+                    Width="100" Height="28" Margin="8,0,0,0" Visibility="Collapsed"
+                    Background="#F38BA8" Foreground="#1E1E2E" FontWeight="SemiBold"
+                    BorderThickness="0" Cursor="Hand"/>
             <TextBlock x:Name="SignInStatus" Foreground="#A6E3A1" FontSize="12"
                        VerticalAlignment="Center" Margin="10,0,0,0"/>
         </StackPanel>
