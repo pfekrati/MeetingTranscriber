@@ -53,10 +53,14 @@ public partial class SettingsWindow : Window
         if (record != null)
         {
             SignInStatus.Text = $"✓ Signed in as {record.Username}";
+            SignInButton.Visibility = Visibility.Collapsed;
+            SignOutButton.Visibility = Visibility.Visible;
         }
         else
         {
             SignInStatus.Text = "Not signed in";
+            SignInButton.Visibility = Visibility.Visible;
+            SignOutButton.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -79,11 +83,13 @@ public partial class SettingsWindow : Window
         SignInStatus.Text = "Opening browser for sign-in...";
         try
         {
-            var credential = FoundryService.CreateEntraCredential();
+            var credential = FoundryService.CreateEntraCredential(useSavedRecord: false);
             var record = await credential.AuthenticateAsync(
                 new TokenRequestContext(["https://cognitiveservices.azure.com/.default"]));
             FoundryService.SaveAuthRecord(record);
             SignInStatus.Text = $"✓ Signed in as {record.Username}";
+            SignInButton.Visibility = Visibility.Collapsed;
+            SignOutButton.Visibility = Visibility.Visible;
         }
         catch (Exception ex)
         {
@@ -93,6 +99,14 @@ public partial class SettingsWindow : Window
         {
             SignInButton.IsEnabled = true;
         }
+    }
+
+    private void SignOut_Click(object sender, RoutedEventArgs e)
+    {
+        FoundryService.DeleteAuthRecord();
+        SignInStatus.Text = "Not signed in";
+        SignInButton.Visibility = Visibility.Visible;
+        SignOutButton.Visibility = Visibility.Collapsed;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)

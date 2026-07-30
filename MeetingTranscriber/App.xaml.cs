@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Hardcodet.Wpf.TaskbarNotification;
@@ -30,17 +31,13 @@ public partial class App : Application
         // not be ready immediately when the app is launched during Windows logon.
         _notifyIcon = CreateNotifyIconWithRetry(maxAttempts: 5, delayMs: 1000);
 
-        // Double-click tray icon to show window
-        _notifyIcon.TrayMouseDoubleClick += (s, args) =>
-        {
-            var mainWindow = Current.MainWindow;
-            if (mainWindow != null)
-            {
-                mainWindow.Show();
-                mainWindow.WindowState = WindowState.Normal;
-                mainWindow.Activate();
-            }
-        };
+        // Left-click (or double-click) tray icon to show window.
+        // Commands are more reliable than routed events when the TaskbarIcon
+        // is created in code-behind (not in the XAML visual tree).
+        var showCommand = new RelayCommand(ShowMainWindow);
+        _notifyIcon.LeftClickCommand = showCommand;
+        _notifyIcon.DoubleClickCommand = showCommand;
+        _notifyIcon.NoLeftClickDelay = true;
 
         // Right-click context menu
         var contextMenu = new System.Windows.Controls.ContextMenu();
@@ -75,9 +72,15 @@ public partial class App : Application
             EventHandler? handler = null;
             handler = (s, args) =>
             {
+                // One-shot: remove from the same event we subscribed to
+                // (Application.Activated) so it never fires again. Previously this
+                // unsubscribed from MainWindow.Activated by mistake, so the handler
+                // kept running and re-hid the window every time the app was
+                // activated (e.g. when double-clicking the tray icon).
+                Activated -= handler;
+
                 if (Current.MainWindow != null)
                 {
-                    Current.MainWindow.Activated -= handler;
                     Current.MainWindow.WindowState = WindowState.Minimized;
                     Current.MainWindow.Hide();
                 }
@@ -102,6 +105,25 @@ public partial class App : Application
         }
         catch { }
         return false;
+    }
+
+    private static void ShowMainWindow()
+    {
+        var mainWindow = Current.MainWindow;
+        if (mainWindow != null)
+        {
+            mainWindow.Show();
+            mainWindow.WindowState = WindowState.Normal;
+            mainWindow.Activate();
+        }
+    }
+
+    /// <summary>Minimal ICommand implementation for tray icon commands.</summary>
+    private sealed class RelayCommand(Action execute) : ICommand
+    {
+        public event EventHandler? CanExecuteChanged;
+        public bool CanExecute(object? parameter) => true;
+        public void Execute(object? parameter) => execute();
     }
 
     private TaskbarIcon CreateNotifyIconWithRetry(int maxAttempts, int delayMs)

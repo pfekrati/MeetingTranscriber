@@ -44,21 +44,28 @@ public class FoundryService : IDisposable
 
     /// <summary>
     /// Creates an InteractiveBrowserCredential with persistent token cache.
-    /// If a saved AuthenticationRecord exists, it is used for silent re-auth.
+    /// When <paramref name="useSavedRecord"/> is true and a saved AuthenticationRecord
+    /// exists, it is used for silent re-auth. Pass false when the user is explicitly
+    /// signing in so they can pick a different account/tenant without being pinned to
+    /// the previously used tenant.
     /// </summary>
-    public static InteractiveBrowserCredential CreateEntraCredential()
+    public static InteractiveBrowserCredential CreateEntraCredential(bool useSavedRecord = true)
     {
         var options = new InteractiveBrowserCredentialOptions
         {
             TokenCachePersistenceOptions = new TokenCachePersistenceOptions
             {
                 Name = "MeetingTranscriber"
-            }
+            },
+            AdditionallyAllowedTenants = { "*" }
         };
 
-        var authRecord = LoadAuthRecord();
-        if (authRecord != null)
-            options.AuthenticationRecord = authRecord;
+        if (useSavedRecord)
+        {
+            var authRecord = LoadAuthRecord();
+            if (authRecord != null)
+                options.AuthenticationRecord = authRecord;
+        }
 
         return new InteractiveBrowserCredential(options);
     }
@@ -82,6 +89,16 @@ public class FoundryService : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(AuthRecordPath)!);
         using var stream = File.Create(AuthRecordPath);
         record.Serialize(stream);
+    }
+
+    public static void DeleteAuthRecord()
+    {
+        try
+        {
+            if (File.Exists(AuthRecordPath))
+                File.Delete(AuthRecordPath);
+        }
+        catch { }
     }
 
     private async Task EnsureAuthHeaderAsync(CancellationToken ct)
@@ -197,8 +214,7 @@ Meeting Transcript:
         var payload = new Dictionary<string, object>
         {
             ["messages"] = messages,
-            [tokenParamName] = 2000,
-            ["temperature"] = 0.3
+            [tokenParamName] = 2000
         };
 
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
